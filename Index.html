@@ -1,0 +1,765 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>GlowClock+</title>
+  <style>
+    :root{
+      --bg1:#070a12; --bg2:#0b1230; --accent:#7cf7ff; --glow: rgba(124,247,255,.75);
+      --muted: rgba(255,255,255,.70); --muted2: rgba(255,255,255,.38);
+      --card: rgba(0,0,0,.18); --border: rgba(255,255,255,.12);
+    }
+    *{ box-sizing:border-box; }
+    html,body{ height:100%; }
+    body{
+      margin:0; overflow:hidden;
+      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;
+      color:#fff;
+      background:
+        radial-gradient(1200px 700px at 20% 20%, color-mix(in srgb, var(--bg2) 85%, black) 0%, transparent 60%),
+        radial-gradient(900px 600px at 80% 30%, color-mix(in srgb, var(--bg1) 75%, black) 0%, transparent 60%),
+        linear-gradient(180deg, var(--bg1), var(--bg2));
+      transition: background 1200ms ease;
+    }
+    .noise{
+      position:fixed; inset:0; pointer-events:none; opacity:.18;
+      background-image:
+        repeating-linear-gradient(0deg, rgba(255,255,255,.03) 0 1px, transparent 1px 3px),
+        repeating-linear-gradient(90deg, rgba(255,255,255,.02) 0 1px, transparent 1px 4px);
+      mix-blend-mode: overlay;
+      animation: drift 8s linear infinite;
+    }
+    @keyframes drift{ from{transform:translate3d(0,0,0)} to{transform:translate3d(-24px,18px,0)} }
+    .vignette{ position:fixed; inset:-20%; pointer-events:none; background: radial-gradient(circle at center, transparent 35%, rgba(0,0,0,.55) 80%); }
+
+    .wrap{ height:100%; display:grid; place-items:center; padding:24px; text-align:center; user-select:none; }
+    .topbar{
+      position:fixed; top:14px; left:50%; transform:translateX(-50%);
+      display:flex; gap:8px; flex-wrap:wrap; justify-content:center;
+      padding:10px; border-radius:999px; border:1px solid var(--border);
+      background: rgba(0,0,0,.20); backdrop-filter: blur(10px);
+      box-shadow: 0 10px 40px rgba(0,0,0,.25);
+    }
+    .tab{
+      cursor:pointer; padding:8px 12px; border-radius:999px;
+      border:1px solid transparent; color: rgba(255,255,255,.78);
+      font-size: 13px;
+    }
+    .tab.active{
+      color: #0b0f1a;
+      background: color-mix(in srgb, var(--accent) 82%, white);
+      box-shadow: 0 0 22px color-mix(in srgb, var(--glow) 55%, transparent);
+    }
+
+    .clock{
+      line-height:1; font-weight:800; letter-spacing:.02em;
+      font-variant-numeric: tabular-nums;
+      font-size: clamp(56px, 12vw, 160px);
+      color: var(--accent);
+      text-shadow: 0 0 12px var(--glow), 0 0 38px color-mix(in srgb, var(--glow) 75%, transparent), 0 0 90px color-mix(in srgb, var(--glow) 45%, transparent);
+      filter: drop-shadow(0 20px 60px rgba(0,0,0,.35));
+    }
+    .sub{
+      margin-top: 16px; font-size: clamp(12px, 1.5vw, 16px);
+      color: var(--muted);
+      display:flex; gap:10px; justify-content:center; align-items:center; flex-wrap:wrap;
+    }
+    .pill, .panel{
+      padding: 8px 10px; border-radius: 14px; border:1px solid var(--border);
+      background: var(--card); backdrop-filter: blur(10px);
+      box-shadow: 0 10px 40px rgba(0,0,0,.25);
+    }
+    .panel{ max-width: 820px; width:min(92vw, 820px); padding:14px; text-align:left; }
+    .row{ display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
+    .row.space{ justify-content:space-between; }
+    label{ font-size:12px; color: var(--muted2); display:block; margin-bottom:6px; }
+    input, select{
+      background: rgba(0,0,0,.22); color: rgba(255,255,255,.9);
+      border:1px solid rgba(255,255,255,.14);
+      border-radius: 12px; padding:10px 12px; outline:none;
+    }
+    input[type="number"]{ width:110px; }
+    input[type="time"]{ width:150px; }
+    button{
+      cursor:pointer;
+      border:1px solid rgba(255,255,255,.14);
+      background: rgba(0,0,0,.22);
+      color: rgba(255,255,255,.9);
+      padding:10px 12px; border-radius: 12px;
+    }
+    button.primary{
+      border-color: color-mix(in srgb, var(--accent) 50%, rgba(255,255,255,.14));
+      box-shadow: 0 0 18px color-mix(in srgb, var(--glow) 35%, transparent);
+    }
+    .list{ margin-top:10px; display:grid; gap:8px; }
+    .item{
+      display:flex; justify-content:space-between; align-items:center; gap:10px;
+      padding:10px 12px; border-radius: 12px; border:1px solid rgba(255,255,255,.10);
+      background: rgba(0,0,0,.16);
+    }
+    .item small{ color: var(--muted2); }
+    .hint{
+      position:fixed; left:14px; bottom:12px; font-size:12px; color: var(--muted2);
+    }
+    .toast{
+      position:fixed; right:14px; bottom:14px;
+      padding:10px 12px; border-radius: 14px;
+      border:1px solid rgba(255,255,255,.14);
+      background: rgba(0,0,0,.28);
+      backdrop-filter: blur(10px);
+      opacity:0; transform: translateY(8px);
+      transition: 220ms ease;
+      pointer-events:none;
+      max-width: min(86vw, 380px);
+    }
+    .toast.show{ opacity:1; transform: translateY(0); }
+
+    /* mode visibility */
+    .mode{ display:none; }
+    .mode.active{ display:block; }
+
+    /* stopwatch/timer big display */
+    .big{
+      font-variant-numeric: tabular-nums;
+      font-weight:800;
+      font-size: clamp(44px, 8vw, 96px);
+      color: var(--accent);
+      text-shadow: 0 0 12px var(--glow), 0 0 38px color-mix(in srgb, var(--glow) 75%, transparent);
+      margin: 4px 0 10px 0;
+      text-align:center;
+    }
+  </style>
+</head>
+<body>
+  <div class="noise"></div>
+  <div class="vignette"></div>
+
+  <div class="topbar" id="tabs">
+    <div class="tab active" data-mode="clockMode">Clock</div>
+    <div class="tab" data-mode="alarmMode">Alarm</div>
+    <div class="tab" data-mode="stopwatchMode">Stopwatch</div>
+    <div class="tab" data-mode="timerMode">Timer</div>
+    <div class="tab" data-mode="worldMode">World Time</div>
+  </div>
+
+  <div class="wrap" id="tapArea" title="Click to change theme">
+    <div>
+      <!-- CLOCK MODE -->
+      <div class="mode active" id="clockMode">
+        <div class="clock" id="clock">00:00</div>
+        <div class="sub">
+          <div class="pill" id="date">—</div>
+          <div class="pill" id="themeName">Theme: —</div>
+          <div class="pill" id="alarmStatus">Alarms: —</div>
+        </div>
+      </div>
+
+      <!-- ALARM MODE -->
+      <div class="mode" id="alarmMode">
+        <div class="clock" style="font-size:clamp(44px,9vw,110px)" id="alarmNow">00:00</div>
+        <div class="sub"><div class="pill" id="alarmDate">—</div></div>
+
+        <div class="panel" style="margin-top:14px">
+          <div class="row" style="gap:14px">
+            <div>
+              <label>Time</label>
+              <input id="alarmTime" type="time" value="07:00" />
+            </div>
+            <div>
+              <label>Label</label>
+              <input id="alarmLabel" type="text" placeholder="Wake up / Meeting" style="width:min(260px, 70vw)" />
+            </div>
+            <div>
+              <label>&nbsp;</label>
+              <button class="primary" id="addAlarmBtn">Add Alarm</button>
+            </div>
+          </div>
+
+          <div class="list" id="alarmList"></div>
+          <div style="margin-top:8px; color:var(--muted2); font-size:12px;">
+            Tip: keep this tab open for alarms to ring (browsers may limit sound until you interact).
+          </div>
+        </div>
+      </div>
+
+      <!-- STOPWATCH MODE -->
+      <div class="mode" id="stopwatchMode">
+        <div class="panel">
+          <div class="big" id="swDisplay">00:00.00</div>
+          <div class="row" style="justify-content:center">
+            <button class="primary" id="swStartBtn">Start</button>
+            <button id="swLapBtn">Lap</button>
+            <button id="swResetBtn">Reset</button>
+          </div>
+          <div class="list" id="swLaps"></div>
+        </div>
+      </div>
+
+      <!-- TIMER MODE -->
+      <div class="mode" id="timerMode">
+        <div class="panel">
+          <div class="big" id="tmDisplay">00:05:00</div>
+          <div class="row" style="justify-content:center; margin-bottom:10px">
+            <div>
+              <label>Hours</label>
+              <input id="tmH" type="number" min="0" max="99" value="0" />
+            </div>
+            <div>
+              <label>Minutes</label>
+              <input id="tmM" type="number" min="0" max="59" value="5" />
+            </div>
+            <div>
+              <label>Seconds</label>
+              <input id="tmS" type="number" min="0" max="59" value="0" />
+            </div>
+          </div>
+          <div class="row" style="justify-content:center">
+            <button class="primary" id="tmStartBtn">Start</button>
+            <button id="tmPauseBtn">Pause</button>
+            <button id="tmResetBtn">Reset</button>
+          </div>
+          <div style="margin-top:8px; color:var(--muted2); font-size:12px;">
+            Quick set: click values, type, press Start.
+          </div>
+        </div>
+      </div>
+
+      <!-- WORLD TIME MODE -->
+      <div class="mode" id="worldMode">
+        <div class="panel">
+          <div class="row">
+            <div style="flex:1; min-width: 240px">
+              <label>Add City (timezone)</label>
+              <select id="tzSelect" style="width:100%">
+                <option value="Europe/London">London</option>
+                <option value="Europe/Paris">Paris</option>
+                <option value="Europe/Berlin">Berlin</option>
+                <option value="America/New_York">New York</option>
+                <option value="America/Chicago">Chicago</option>
+                <option value="America/Los_Angeles">Los Angeles</option>
+                <option value="Asia/Dubai">Dubai</option>
+                <option value="Asia/Kolkata">India (Kolkata)</option>
+                <option value="Asia/Singapore">Singapore</option>
+                <option value="Asia/Tokyo">Tokyo</option>
+                <option value="Australia/Sydney">Sydney</option>
+              </select>
+            </div>
+            <div>
+              <label>&nbsp;</label>
+              <button class="primary" id="addWorldBtn">Add</button>
+            </div>
+          </div>
+
+          <div class="list" id="worldList"></div>
+          <div style="margin-top:8px; color:var(--muted2); font-size:12px;">
+            Uses your device time + timezone conversions (no API needed).
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <div class="hint">
+    Click background = theme • Keys: <b>T</b> 12/24h • <b>S</b> seconds
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script>
+    // ---------------- THEMES ----------------
+    const themes = [
+      { name: "Arctic Glow", bg1:"#070a12", bg2:"#0b1230", accent:"#7cf7ff" },
+      { name: "Neon Orchid", bg1:"#0b0617", bg2:"#240a3d", accent:"#ff7cff" },
+      { name: "Solar Ember", bg1:"#120606", bg2:"#2c0f0a", accent:"#ffb15c" },
+      { name: "Mint Night",  bg1:"#04120f", bg2:"#062a23", accent:"#76ffb3" },
+    ];
+    const root = document.documentElement;
+
+    function clamp(n,a,b){ return Math.max(a, Math.min(b, n)); }
+    function hexToRgb(hex){
+      const h = hex.replace("#","");
+      const full = h.length===3 ? h.split("").map(c=>c+c).join("") : h;
+      const n = parseInt(full,16);
+      return { r:(n>>16)&255, g:(n>>8)&255, b:n&255 };
+    }
+    function rgbToHex({r,g,b}){
+      return "#" + [r,g,b].map(v=>v.toString(16).padStart(2,"0")).join("");
+    }
+    function hexToRgba(hex, a){
+      const {r,g,b}=hexToRgb(hex);
+      return `rgba(${r}, ${g}, ${b}, ${a})`;
+    }
+    function minuteTint(hex, minute){
+      const t = (Math.sin((minute/60)*Math.PI*2)+1)/2;
+      const rgb = hexToRgb(hex);
+      const light = { r: clamp(rgb.r+30,0,255), g: clamp(rgb.g+30,0,255), b: clamp(rgb.b+30,0,255) };
+      return rgbToHex({
+        r: Math.round(rgb.r*(1-t)+light.r*t),
+        g: Math.round(rgb.g*(1-t)+light.g*t),
+        b: Math.round(rgb.b*(1-t)+light.b*t),
+      });
+    }
+
+    let themeIndex = Number(localStorage.getItem("gc_theme") ?? 0) || 0;
+    let showSeconds = (localStorage.getItem("gc_seconds") ?? "1") === "1";
+    let use24h = (localStorage.getItem("gc_24h") ?? "1") === "1";
+
+    function applyTheme(i, minuteForTint = new Date().getMinutes()){
+      themeIndex = (i + themes.length) % themes.length;
+      const t = themes[themeIndex];
+      root.style.setProperty("--bg1", t.bg1);
+      root.style.setProperty("--bg2", minuteTint(t.bg2, minuteForTint));
+      root.style.setProperty("--accent", t.accent);
+      root.style.setProperty("--glow", hexToRgba(t.accent, .75));
+      document.getElementById("themeName").textContent = "Theme: " + t.name;
+      localStorage.setItem("gc_theme", String(themeIndex));
+    }
+
+    // ---------------- UI + MODES ----------------
+    const tabs = document.getElementById("tabs");
+    tabs.addEventListener("click", (e)=>{
+      const tab = e.target.closest(".tab");
+      if(!tab) return;
+      document.querySelectorAll(".tab").forEach(t=>t.classList.remove("active"));
+      tab.classList.add("active");
+      const mode = tab.dataset.mode;
+      document.querySelectorAll(".mode").forEach(m=>m.classList.remove("active"));
+      document.getElementById(mode).classList.add("active");
+    });
+
+    document.getElementById("tapArea").addEventListener("click", (e)=>{
+      // avoid switching theme when clicking buttons/inputs
+      if(e.target.closest("button, input, select, .tab, .panel")) return;
+      applyTheme(themeIndex+1);
+    });
+
+    window.addEventListener("keydown", (e)=>{
+      const k = e.key.toLowerCase();
+      if(k==="t"){ use24h=!use24h; localStorage.setItem("gc_24h", use24h?"1":"0"); }
+      if(k==="s"){ showSeconds=!showSeconds; localStorage.setItem("gc_seconds", showSeconds?"1":"0"); }
+    });
+
+    function formatTime(d){
+      let h=d.getHours(), m=d.getMinutes(), s=d.getSeconds();
+      let suffix="";
+      if(!use24h){
+        suffix = h>=12 ? " PM" : " AM";
+        h = h%12; if(h===0) h=12;
+      }
+      const hh=String(h).padStart(2,"0");
+      const mm=String(m).padStart(2,"0");
+      const ss=String(s).padStart(2,"0");
+      return showSeconds ? `${hh}:${mm}:${ss}${suffix}` : `${hh}:${mm}${suffix}`;
+    }
+    function formatDate(d){
+      return d.toLocaleDateString(undefined,{ weekday:"long", day:"2-digit", month:"long", year:"numeric" });
+    }
+
+    // ---------------- TOAST + BEEP ----------------
+    const toastEl = document.getElementById("toast");
+    function toast(msg){
+      toastEl.textContent = msg;
+      toastEl.classList.add("show");
+      setTimeout(()=>toastEl.classList.remove("show"), 2400);
+    }
+
+    // Simple beep (no external file). Requires user interaction in most browsers.
+    const AudioCtx = window.AudioContext || window.webkitAudioContext;
+    let audioCtx = null;
+    function beep(times=2){
+      try{
+        if(!audioCtx) audioCtx = new AudioCtx();
+        const now = audioCtx.currentTime;
+        for(let i=0;i<times;i++){
+          const o = audioCtx.createOscillator();
+          const g = audioCtx.createGain();
+          o.type = "sine";
+          o.frequency.value = 880;
+          g.gain.value = 0.0001;
+          o.connect(g); g.connect(audioCtx.destination);
+          const t0 = now + i*0.35;
+          g.gain.setValueAtTime(0.0001, t0);
+          g.gain.exponentialRampToValueAtTime(0.35, t0+0.02);
+          g.gain.exponentialRampToValueAtTime(0.0001, t0+0.25);
+          o.start(t0);
+          o.stop(t0+0.26);
+        }
+      }catch(_){}
+    }
+
+    // ---------------- ALARMS ----------------
+    const alarmTimeEl = document.getElementById("alarmTime");
+    const alarmLabelEl = document.getElementById("alarmLabel");
+    const addAlarmBtn = document.getElementById("addAlarmBtn");
+    const alarmListEl = document.getElementById("alarmList");
+    const alarmStatusEl = document.getElementById("alarmStatus");
+
+    // alarm object: { id, time:"HH:MM", label, enabled:true }
+    let alarms = load("gc_alarms", []);
+
+    function load(key, fallback){
+      try{ return JSON.parse(localStorage.getItem(key) || "") ?? fallback; }
+      catch{ return fallback; }
+    }
+    function save(key, val){ localStorage.setItem(key, JSON.stringify(val)); }
+
+    function renderAlarms(){
+      alarmListEl.innerHTML = "";
+      if(!alarms.length){
+        alarmListEl.innerHTML = `<div class="item"><div>No alarms yet</div><small>Add one above</small></div>`;
+      } else {
+        alarms
+          .slice()
+          .sort((a,b)=>a.time.localeCompare(b.time))
+          .forEach(a=>{
+            const div = document.createElement("div");
+            div.className = "item";
+            div.innerHTML = `
+              <div>
+                <div style="font-weight:650">${a.time} ${a.label ? "• "+escapeHtml(a.label) : ""}</div>
+                <small>${a.enabled ? "Enabled" : "Disabled"}</small>
+              </div>
+              <div class="row" style="gap:8px">
+                <button data-act="toggle" data-id="${a.id}">${a.enabled ? "Off" : "On"}</button>
+                <button data-act="delete" data-id="${a.id}">Delete</button>
+              </div>
+            `;
+            alarmListEl.appendChild(div);
+          });
+      }
+      const enabledCount = alarms.filter(a=>a.enabled).length;
+      alarmStatusEl.textContent = `Alarms: ${enabledCount} on`;
+      save("gc_alarms", alarms);
+    }
+
+    function escapeHtml(s){
+      return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+    }
+
+    addAlarmBtn.addEventListener("click", ()=>{
+      const t = alarmTimeEl.value;
+      if(!t){ toast("Pick a time"); return; }
+      const label = alarmLabelEl.value.trim();
+      alarms.push({ id: crypto.randomUUID?.() || String(Date.now()+Math.random()), time: t, label, enabled:true, lastFired:null });
+      alarmLabelEl.value = "";
+      toast("Alarm added");
+      renderAlarms();
+    });
+
+    alarmListEl.addEventListener("click", (e)=>{
+      const btn = e.target.closest("button"); if(!btn) return;
+      const id = btn.dataset.id, act = btn.dataset.act;
+      const idx = alarms.findIndex(a=>a.id===id);
+      if(idx<0) return;
+
+      if(act==="toggle"){
+        alarms[idx].enabled = !alarms[idx].enabled;
+        toast(alarms[idx].enabled ? "Alarm on" : "Alarm off");
+      }
+      if(act==="delete"){
+        alarms.splice(idx,1);
+        toast("Alarm deleted");
+      }
+      renderAlarms();
+    });
+
+    function checkAlarms(now){
+      const hh = String(now.getHours()).padStart(2,"0");
+      const mm = String(now.getMinutes()).padStart(2,"0");
+      const cur = `${hh}:${mm}`;
+
+      alarms.forEach(a=>{
+        if(!a.enabled) return;
+        if(a.time !== cur) return;
+
+        // avoid firing repeatedly within the same minute
+        const key = now.toDateString()+" "+cur;
+        if(a.lastFired === key) return;
+        a.lastFired = key;
+
+        renderAlarms(); // persist lastFired
+        beep(3);
+        toast(`Alarm: ${a.time}${a.label ? " • "+a.label : ""}`);
+      });
+    }
+
+    // ---------------- STOPWATCH ----------------
+    const swDisplay = document.getElementById("swDisplay");
+    const swStartBtn = document.getElementById("swStartBtn");
+    const swLapBtn = document.getElementById("swLapBtn");
+    const swResetBtn = document.getElementById("swResetBtn");
+    const swLapsEl = document.getElementById("swLaps");
+
+    let swRunning=false;
+    let swStart=0;
+    let swElapsed=0;
+    let swLaps=[];
+
+    function fmtMs(ms){
+      const total = Math.max(0, ms);
+      const m = Math.floor(total/60000);
+      const s = Math.floor((total%60000)/1000);
+      const cs = Math.floor((total%1000)/10);
+      return `${String(m).padStart(2,"0")}:${String(s).padStart(2,"0")}.${String(cs).padStart(2,"0")}`;
+    }
+    function renderLaps(){
+      swLapsEl.innerHTML = "";
+      if(!swLaps.length) return;
+      swLaps.slice().reverse().forEach((lap,i)=>{
+        const div = document.createElement("div");
+        div.className="item";
+        div.innerHTML = `<div>Lap ${swLaps.length - i}</div><div style="font-weight:700">${fmtMs(lap)}</div>`;
+        swLapsEl.appendChild(div);
+      });
+    }
+
+    swStartBtn.addEventListener("click", ()=>{
+      if(!swRunning){
+        swRunning=true;
+        swStart = performance.now();
+        swStartBtn.textContent="Stop";
+        swStartBtn.classList.add("primary");
+        toast("Stopwatch started");
+      } else {
+        swRunning=false;
+        swElapsed += performance.now()-swStart;
+        swStartBtn.textContent="Start";
+        swStartBtn.classList.add("primary");
+        toast("Stopwatch stopped");
+      }
+    });
+
+    swLapBtn.addEventListener("click", ()=>{
+      if(!swRunning && swElapsed===0) return;
+      const current = swRunning ? (swElapsed + (performance.now()-swStart)) : swElapsed;
+      swLaps.push(current);
+      renderLaps();
+      toast("Lap saved");
+    });
+
+    swResetBtn.addEventListener("click", ()=>{
+      swRunning=false; swElapsed=0; swLaps=[];
+      swStartBtn.textContent="Start";
+      swDisplay.textContent="00:00.00";
+      renderLaps();
+      toast("Stopwatch reset");
+    });
+
+    // ---------------- TIMER ----------------
+    const tmDisplay = document.getElementById("tmDisplay");
+    const tmH = document.getElementById("tmH");
+    const tmM = document.getElementById("tmM");
+    const tmS = document.getElementById("tmS");
+    const tmStartBtn = document.getElementById("tmStartBtn");
+    const tmPauseBtn = document.getElementById("tmPauseBtn");
+    const tmResetBtn = document.getElementById("tmResetBtn");
+
+    let tmRunning=false;
+    let tmTotal=0;    // ms initial
+    let tmLeft=0;     // ms remaining
+    let tmLastTick=0;
+
+    function readTimerInputMs(){
+      const h = clamp(parseInt(tmH.value||"0",10),0,99);
+      const m = clamp(parseInt(tmM.value||"0",10),0,59);
+      const s = clamp(parseInt(tmS.value||"0",10),0,59);
+      return ((h*3600)+(m*60)+s)*1000;
+    }
+    function fmtHMS(ms){
+      ms = Math.max(0, ms);
+      const totalS = Math.floor(ms/1000);
+      const h = Math.floor(totalS/3600);
+      const m = Math.floor((totalS%3600)/60);
+      const s = totalS%60;
+      return `${String(h).padStart(2,"0")}:${String(m).padStart(2,"0")}:${String(s).padStart(2,"0")}`;
+    }
+    function renderTimer(){
+      tmDisplay.textContent = fmtHMS(tmLeft || readTimerInputMs());
+    }
+
+    tmStartBtn.addEventListener("click", ()=>{
+      if(!tmRunning){
+        if(tmLeft<=0){
+          tmTotal = readTimerInputMs();
+          tmLeft = tmTotal;
+        }
+        if(tmLeft<=0){ toast("Set a timer first"); return; }
+        tmRunning=true;
+        tmLastTick=performance.now();
+        toast("Timer started");
+      }
+    });
+    tmPauseBtn.addEventListener("click", ()=>{
+      if(!tmRunning) return;
+      tmRunning=false;
+      toast("Timer paused");
+    });
+    tmResetBtn.addEventListener("click", ()=>{
+      tmRunning=false;
+      tmTotal = readTimerInputMs();
+      tmLeft = tmTotal;
+      renderTimer();
+      toast("Timer reset");
+    });
+
+    // update display when inputs change
+    [tmH, tmM, tmS].forEach(el=>{
+      el.addEventListener("input", ()=>{
+        if(!tmRunning){
+          tmTotal = readTimerInputMs();
+          tmLeft = tmTotal;
+          renderTimer();
+        }
+      });
+    });
+
+    // ---------------- WORLD TIME ----------------
+    const tzSelect = document.getElementById("tzSelect");
+    const addWorldBtn = document.getElementById("addWorldBtn");
+    const worldListEl = document.getElementById("worldList");
+
+    let worldZones = load("gc_world", ["Europe/London","America/New_York","Asia/Tokyo"]);
+
+    function zoneLabel(tz){
+      const last = tz.split("/").pop().replace(/_/g," ");
+      return last;
+    }
+    function fmtInTZ(date, tz){
+      // 24h always for world list for clarity
+      const t = new Intl.DateTimeFormat(undefined, {
+        hour:"2-digit", minute:"2-digit", second:"2-digit", hour12:false, timeZone: tz
+      }).format(date);
+      const d = new Intl.DateTimeFormat(undefined, {
+        weekday:"short", day:"2-digit", month:"short", timeZone: tz
+      }).format(date);
+      return { t, d };
+    }
+
+    function renderWorld(){
+      worldListEl.innerHTML="";
+      if(!worldZones.length){
+        worldListEl.innerHTML = `<div class="item"><div>No cities</div><small>Add one above</small></div>`;
+        return;
+      }
+      const now = new Date();
+      worldZones.forEach(tz=>{
+        const div = document.createElement("div");
+        div.className="item";
+        const {t,d} = fmtInTZ(now, tz);
+        div.innerHTML = `
+          <div>
+            <div style="font-weight:700">${escapeHtml(zoneLabel(tz))}</div>
+            <small>${escapeHtml(tz)} • ${escapeHtml(d)}</small>
+          </div>
+          <div class="row" style="gap:8px; align-items:center">
+            <div style="font-variant-numeric:tabular-nums; font-weight:800">${escapeHtml(t)}</div>
+            <button data-act="remove" data-tz="${escapeHtml(tz)}">Remove</button>
+          </div>
+        `;
+        worldListEl.appendChild(div);
+      });
+      save("gc_world", worldZones);
+    }
+
+    addWorldBtn.addEventListener("click", ()=>{
+      const tz = tzSelect.value;
+      if(!worldZones.includes(tz)){
+        worldZones.push(tz);
+        toast("Added: "+zoneLabel(tz));
+        renderWorld();
+      } else {
+        toast("Already added");
+      }
+    });
+
+    worldListEl.addEventListener("click", (e)=>{
+      const btn = e.target.closest("button"); if(!btn) return;
+      if(btn.dataset.act==="remove"){
+        const tz = btn.dataset.tz;
+        worldZones = worldZones.filter(z=>z!==tz);
+        toast("Removed");
+        renderWorld();
+      }
+    });
+
+    // ---------------- MAIN TICK ----------------
+    const clockEl = document.getElementById("clock");
+    const dateEl = document.getElementById("date");
+    const alarmNowEl = document.getElementById("alarmNow");
+    const alarmDateEl = document.getElementById("alarmDate");
+
+    let lastMinute=null;
+
+    function tick(){
+      const now = new Date();
+
+      // clock + alarm header time
+      const t = formatTime(now);
+      clockEl.textContent = t;
+      alarmNowEl.textContent = t;
+
+      const d = formatDate(now);
+      dateEl.textContent = d;
+      alarmDateEl.textContent = d;
+
+      // minute-based background tint refresh
+      const minute = now.getMinutes();
+      if(minute !== lastMinute){
+        applyTheme(themeIndex, minute);
+        lastMinute = minute;
+      }
+
+      // alarms check once per second
+      if(now.getSeconds() === 0) checkAlarms(now);
+
+      // stopwatch update
+      if(swRunning){
+        const current = swElapsed + (performance.now()-swStart);
+        swDisplay.textContent = fmtMs(current);
+      } else {
+        swDisplay.textContent = fmtMs(swElapsed);
+      }
+
+      // timer update
+      if(tmRunning){
+        const p = performance.now();
+        const dt = p - tmLastTick;
+        tmLastTick = p;
+        tmLeft -= dt;
+        if(tmLeft <= 0){
+          tmLeft = 0;
+          tmRunning = false;
+          beep(4);
+          toast("Timer finished!");
+        }
+        tmDisplay.textContent = fmtHMS(tmLeft);
+      } else {
+        // keep display in sync when not running
+        if(document.getElementById("timerMode").classList.contains("active")){
+          tmDisplay.textContent = fmtHMS(tmLeft || readTimerInputMs());
+        }
+      }
+
+      // world update (only repaint if world mode active)
+      if(document.getElementById("worldMode").classList.contains("active")){
+        renderWorld();
+      }
+
+      requestAnimationFrame(tick);
+    }
+
+    // INIT
+    applyTheme(themeIndex);
+    alarms = Array.isArray(alarms) ? alarms : [];
+    renderAlarms();
+    renderWorld();
+    tmTotal = readTimerInputMs();
+    tmLeft = tmTotal;
+    renderTimer();
+
+    tick();
+  </script>
+</body>
+</html>
