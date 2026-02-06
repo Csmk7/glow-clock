@@ -3,7 +3,39 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>GlowClock+</title>
+<!-- ================= SEO & SOCIAL ================= -->
+<title>GlowClock – Minimal Clock, Alarm & Timer</title>
+
+<meta name="description" content="GlowClock is a beautiful fullscreen clock with alarm, timer, stopwatch and world time. Clean, fast and distraction-free." />
+<meta name="keywords" content="clock, alarm clock, timer, stopwatch, world time, fullscreen clock, minimal clock" />
+<meta name="author" content="GlowClock" />
+
+<!-- ================= ICONS ================= -->
+<link rel="icon" href="/favicon.png" />
+<link rel="apple-touch-icon" href="/icon-192.png" />
+
+<!-- ================= MOBILE / THEME ================= -->
+<meta name="theme-color" content="#7cf7ff" />
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+
+
+<!-- Open Graph -->
+<meta property="og:title" content="GlowClock" />
+<meta property="og:description" content="A beautiful fullscreen clock with alarm, timer, stopwatch and world time." />
+<meta property="og:type" content="website" />
+<meta property="og:url" content="https://glow-clock.com" />
+<meta property="og:image" content="https://glow-clock.com/og-image.png" />
+
+<!-- Twitter / X -->
+<meta name="twitter:card" content="summary_large_image" />
+<meta name="twitter:title" content="GlowClock" />
+<meta name="twitter:description" content="Minimal fullscreen clock with alarm, timer, stopwatch and world time." />
+<meta name="twitter:image" content="https://glow-clock.com/og-image.png" />
+
+
+
+
   <style>
     :root{
       --bg1:#070a12; --bg2:#0b1230; --accent:#7cf7ff; --glow: rgba(124,247,255,.75);
@@ -761,5 +793,34 @@
 
     tick();
   </script>
+
+  <!-- ================= PERFORMANCE ================= -->
+<style>
+  body {
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+</style>
+
+<link rel="preconnect" href="https://glow-clock.com">
+
+
+  <!-- ================= FOOTER ================= -->
+<footer style="
+  position: fixed;
+  bottom: 12px;
+  right: 16px;
+  font-size: 12px;
+  color: rgba(255,255,255,.35);
+  font-family: system-ui, sans-serif;
+">
+  GlowClock • 
+  <a href="https://glow-clock.com"
+     style="color:inherit;text-decoration:none">
+    glow-clock.com
+  </a>
+</footer>
+
 </body>
 </html>
